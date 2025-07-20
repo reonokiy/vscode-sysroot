@@ -1,9 +1,9 @@
-FROM ubuntu:latest AS crosstool
+FROM ubuntu:24.04 AS crosstool
 
 RUN apt-get update
 RUN apt-get install -y gcc g++ gperf bison flex texinfo help2man make libncurses5-dev \
-python3-dev autoconf automake libtool libtool-bin gawk wget bzip2 xz-utils unzip \
-patch rsync meson ninja-build
+    python3-dev autoconf automake libtool libtool-bin gawk wget bzip2 xz-utils unzip \
+    patch rsync meson ninja-build
 
 # Install crosstool-ng
 ENV PKG=crosstool-ng-1.27.0

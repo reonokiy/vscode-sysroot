@@ -1,0 +1,62 @@
+name: Build and Release Sysroot
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        run: |
+          docker build -t vscode-sysroot .
+
+      - name: Extract sysroot file from container
+        run: |
+          # Create a temporary container and copy the file
+          CONTAINER_ID=$(docker create vscode-sysroot)
+          docker cp $CONTAINER_ID:/src/vscode-sysroot-x86_64-linux-gnu.tgz ./vscode-sysroot-x86_64-linux-gnu.tgz
+          docker rm $CONTAINER_ID
+
+      - name: Get version from tag
+        id: get_version
+        run: |
+          if [[ $GITHUB_REF == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/}
+          else
+            VERSION="dev-$(date +%Y%m%d-%H%M%S)"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.get_version.outputs.version }}
+          release_name: Release ${{ steps.get_version.outputs.version }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./vscode-sysroot-x86_64-linux-gnu.tgz
+          asset_name: vscode-sysroot-x86_64-linux-gnu.tgz
+          asset_content_type: application/gzip
